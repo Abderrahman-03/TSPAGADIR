@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 import folium
 import matplotlib.pyplot as plt
@@ -31,23 +33,79 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .stApp { background: #f5f7fb; }
-    [data-testid="stHeader"] { background: rgba(245,247,251,.9); }
-    .block-container { max-width: 1560px; padding-top: 1.4rem; }
-    .hero {
-        padding: 1.2rem 1.5rem; border-radius: 16px; margin-bottom: 1.15rem;
-        color: white; background: linear-gradient(120deg,#102a43,#1769aa);
+    :root {
+        --navy: #15324b;
+        --teal: #138a83;
+        --teal-soft: #e6f5f2;
+        --orange: #e88745;
+        --ink: #22394d;
+        --muted: #64788a;
+        --line: #dce6ee;
+        --canvas: #f1f5f8;
     }
-    .hero h1 { margin: 0; font-size: 1.8rem; }
-    .hero p { margin: .35rem 0 0; color: #dceaf6; }
+    .stApp { background: var(--canvas); color: var(--ink); }
+    [data-testid="stHeader"] { background: rgba(241,245,248,.94); }
+    .block-container { max-width: 1600px; padding-top: 1.2rem; padding-bottom: 2rem; }
+    .hero {
+        position: relative; overflow: hidden;
+        padding: 1.45rem 1.7rem; border-radius: 18px; margin-bottom: 1.15rem;
+        color: white;
+        background: linear-gradient(112deg,#12324b 0%,#155c67 60%,#19877c 100%);
+        box-shadow: 0 10px 26px rgba(21,50,75,.16);
+    }
+    .hero h1 { margin: 0; font-size: 1.9rem; letter-spacing: -.025em; }
+    .hero p { margin: .4rem 0 0; color: #d9eeed; font-size: 1rem; }
+    h2, h3 { color: var(--navy); letter-spacing: -.015em; }
     [data-testid="stVerticalBlockBorderWrapper"] {
-        background: white; border-radius: 14px; border-color: #e2e8f0;
+        background: #fff; border-radius: 16px; border-color: var(--line);
+        box-shadow: 0 4px 14px rgba(21,50,75,.045);
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] h3 {
+        padding-bottom: .6rem; border-bottom: 1px solid #e8eef3;
     }
     div[data-testid="stMetric"] {
-        background: #f5f8fc; border: 1px solid #e8eef5;
-        padding: .6rem .8rem; border-radius: 10px;
+        min-height: 94px; background: #f7fafb; border: 1px solid #e3ebef;
+        padding: .72rem .8rem; border-radius: 12px;
     }
-    .small-note { color: #526579; font-size: .88rem; }
+    [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 600; }
+    [data-testid="stMetricValue"] { color: var(--navy); }
+    [data-testid="stMetricDelta"] { color: var(--teal); }
+    .stButton > button {
+        border-radius: 10px; min-height: 2.65rem; font-weight: 650;
+        border-color: #c9d8e2; color: var(--navy); transition: all .15s ease;
+    }
+    .stButton > button:hover { border-color: var(--teal); color: var(--teal); }
+    .stButton > button[kind="primary"] {
+        background: var(--teal); border-color: var(--teal); color: white;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: #0e746f; border-color: #0e746f; color: white;
+    }
+    [data-testid="stProgressBar"] > div > div { background: var(--teal); }
+    .result-note {
+        color: var(--muted); font-size: .84rem; margin: -.25rem 0 .45rem;
+    }
+    .route-strip {
+        display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+        padding: .8rem; background: #f7fafb; border: 1px solid #e3ebef;
+        border-radius: 12px; line-height: 1.6;
+    }
+    .route-chip {
+        display: inline-block; padding: .12rem .5rem; border-radius: 999px;
+        color: #14544f; background: var(--teal-soft); border: 1px solid #c9e8e2;
+        font: 600 .78rem ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .route-chip.depot {
+        color: #75431f; background: #fff1e5; border-color: #f4d0b1;
+    }
+    .route-arrow { color: #92a3ae; font-size: .78rem; }
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        padding: .1rem;
+    }
+    @media (max-width: 900px) {
+        .hero h1 { font-size: 1.5rem; }
+        .block-container { padding-left: 1rem; padding-right: 1rem; }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -216,11 +274,28 @@ def _show_agents() -> None:
 
 
 def _show_convergence(result: GAResult) -> None:
-    figure, axis = plt.subplots(figsize=(7, 2.8), dpi=110)
-    axis.plot(result.convergence_km, color="#f36b3f", linewidth=2)
-    axis.set_xlabel("Itération")
-    axis.set_ylabel("Distance (km)")
-    axis.grid(alpha=0.25)
+    figure, axis = plt.subplots(figsize=(7, 2.7), dpi=110)
+    iterations = range(len(result.convergence_km))
+    axis.set_facecolor("#f8fafb")
+    figure.patch.set_facecolor("white")
+    axis.fill_between(iterations, result.convergence_km, color="#138a83", alpha=0.11)
+    axis.plot(iterations, result.convergence_km, color="#138a83", linewidth=2.2)
+    axis.scatter(
+        [0, len(result.convergence_km) - 1],
+        [result.convergence_km[0], result.convergence_km[-1]],
+        color=["#e88745", "#138a83"],
+        edgecolors="white",
+        linewidths=1.2,
+        s=42,
+        zorder=3,
+    )
+    axis.set_xlabel("Itération", color="#64788a")
+    axis.set_ylabel("Distance (km)", color="#64788a")
+    axis.tick_params(colors="#64788a", labelsize=8)
+    axis.grid(color="#dce6ee", linewidth=.7, alpha=.8)
+    axis.spines[["top", "right"]].set_visible(False)
+    for spine in ("left", "bottom"):
+        axis.spines[spine].set_color("#dce6ee")
     figure.tight_layout()
     st.pyplot(figure, use_container_width=True)
     plt.close(figure)
@@ -228,19 +303,24 @@ def _show_convergence(result: GAResult) -> None:
 
 def _show_cartesian(stops: list[Stop], result: GAResult) -> None:
     figure, axis = plt.subplots(figsize=(7, 4), dpi=110)
+    axis.set_facecolor("#f8fafb")
+    figure.patch.set_facecolor("white")
     route = [stops[index] for index in (*result.route, result.route[0])]
     axis.plot(
         [stop.longitude for stop in route],
         [stop.latitude for stop in route],
-        color="#f36b3f",
-        linewidth=1.5,
+        color="#e88745",
+        linewidth=1.9,
+        alpha=.9,
         zorder=1,
     )
     axis.scatter(
         [stop.longitude for stop in stops[1:]],
         [stop.latitude for stop in stops[1:]],
-        color="#1769aa",
-        s=22,
+        color="#138a83",
+        edgecolors="white",
+        linewidths=.6,
+        s=30,
         zorder=2,
     )
     for stop in stops[1:]:
@@ -249,22 +329,28 @@ def _show_cartesian(stops: list[Stop], result: GAResult) -> None:
             (stop.longitude, stop.latitude),
             xytext=(3, 3),
             textcoords="offset points",
-            fontsize=6,
+            fontsize=6.5,
+            color="#385268",
         )
     depot = stops[0]
     axis.scatter(
         depot.longitude,
         depot.latitude,
         marker="*",
-        color="#df2525",
-        edgecolor="black",
-        s=190,
+        color="#e88745",
+        edgecolor="#75431f",
+        linewidth=1,
+        s=200,
         zorder=3,
         label="★ Entrepôt",
     )
     axis.set_xlabel("Longitude")
     axis.set_ylabel("Latitude")
-    axis.grid(alpha=0.2)
+    axis.tick_params(colors="#64788a", labelsize=8)
+    axis.grid(color="#dce6ee", linewidth=.7, alpha=.8)
+    axis.spines[["top", "right"]].set_visible(False)
+    for spine in ("left", "bottom"):
+        axis.spines[spine].set_color("#dce6ee")
     axis.legend(loc="best")
     figure.tight_layout()
     st.pyplot(figure, use_container_width=True)
@@ -286,7 +372,7 @@ def _show_folium_map(stops: list[Stop], result: GAResult, road_route: RoadRoute 
                 [stop.latitude, stop.longitude],
                 tooltip=f"★ Entrepôt · {stop.name}",
                 popup=f"Point {stop.stop_id} — {stop.name}",
-                icon=folium.Icon(color="red", icon="star", prefix="fa"),
+                icon=folium.Icon(color="orange", icon="star", prefix="fa"),
             ).add_to(route_map)
         else:
             order = visit_order[index]
@@ -296,7 +382,7 @@ def _show_folium_map(stops: list[Stop], result: GAResult, road_route: RoadRoute 
                 popup=f"Étape {order} — point {stop.stop_id}",
                 icon=folium.DivIcon(
                     html=(
-                        '<div style="background:#1769aa;color:white;'
+                        '<div style="background:#138a83;color:white;'
                         'border-radius:50%;width:26px;height:26px;'
                         'text-align:center;line-height:26px;font-weight:bold;'
                         f'border:2px solid white">{order}</div>'
@@ -307,8 +393,8 @@ def _show_folium_map(stops: list[Stop], result: GAResult, road_route: RoadRoute 
     if road_route:
         folium.PolyLine(
             road_route.coordinates,
-            color="#f36b3f",
-            weight=4,
+            color="#e88745",
+            weight=5,
             opacity=0.9,
             tooltip=(
                 f"OSRM · {road_route.distance_km:.2f} km · "
@@ -320,7 +406,7 @@ def _show_folium_map(stops: list[Stop], result: GAResult, road_route: RoadRoute 
         route = [stops[index] for index in (*result.route, result.route[0])]
         folium.PolyLine(
             [(stop.latitude, stop.longitude) for stop in route],
-            color="#f36b3f",
+            color="#e88745",
             weight=3,
             tooltip="Segments droits — tracé OSRM indisponible",
         ).add_to(route_map)
@@ -385,13 +471,13 @@ def main() -> None:
             )
             b1, b2, b3 = st.columns(3)
             manual_clicked = b1.button(
-                "B1 · Manuel", key="web_b1", use_container_width=True
+                "⚡ B1 · Manuel", key="web_b1", type="primary", use_container_width=True
             )
             optuna_clicked = b2.button(
-                "B2 · Optuna", key="web_b2", use_container_width=True
+                "🧪 B2 · Optuna", key="web_b2", use_container_width=True
             )
             agents_clicked = b3.button(
-                "B3 · Agents IA", key="web_b3", use_container_width=True
+                "🤖 B3 · Agents IA", key="web_b3", use_container_width=True
             )
 
             if manual_clicked:
@@ -410,26 +496,61 @@ def main() -> None:
             if result is None:
                 st.info("Lancez B1, B2 ou B3 pour calculer la tournée.")
             else:
-                metric, source = st.columns(2)
-                metric.metric("Distance optimisée", f"{result.distance_km:.2f} km")
-                source.metric("Métrique", st.session_state.tsp_distance_source)
+                config: GAConfig = st.session_state.tsp_config
+                initial_distance = result.convergence_km[0]
+                gain = (
+                    (initial_distance - result.distance_km) / initial_distance * 100
+                    if initial_distance > 0
+                    else 0
+                )
+                distance_metric, time_metric, gain_metric, iteration_metric = st.columns(4)
+                distance_metric.metric("Distance", f"{result.distance_km:.2f} km")
+                road_route: RoadRoute | None = st.session_state.tsp_road_route
+                time_metric.metric(
+                    "Temps estimé",
+                    f"{road_route.duration_minutes:.0f} min" if road_route else "—",
+                )
+                gain_metric.metric("Amélioration", f"{gain:.1f} %")
+                iteration_metric.metric("Itérations", f"{config.generations:,}".replace(",", " "))
+                st.markdown(
+                    f'<div class="result-note">Métrique : '
+                    f'<strong>{escape(st.session_state.tsp_distance_source or "—")}</strong>'
+                    " · Le chromosome retourne au dépôt.</div>",
+                    unsafe_allow_html=True,
+                )
                 if st.session_state.tsp_matrix_warning:
                     st.warning(
                         "Métrique de repli : distance géodésique à vol d’oiseau, "
                         "OSRM indisponible."
                     )
                 _show_convergence(result)
+                st.markdown("**Chromosome solution**")
                 stop_ids = [
                     st.session_state.tsp_stops[index].stop_id
                     for index in result.route
                 ]
-                st.caption("Chromosome solution — retour à l’entrepôt inclus")
-                st.code(" → ".join(stop_ids + [stop_ids[0]]), language=None)
-                config: GAConfig = st.session_state.tsp_config
-                st.caption(
-                    f"Population {config.population_size} · {config.selection} · "
-                    f"mutation {config.mutation_rate} · crossover {config.crossover_rate} · "
-                    f"{config.generations} itérations"
+                route_items = []
+                last_index = len(stop_ids) - 1
+                for position, stop_id in enumerate(stop_ids + [stop_ids[0]]):
+                    depot_class = " depot" if position in (0, last_index + 1) else ""
+                    prefix = "★ " if position == 0 else ""
+                    route_items.append(
+                        f'<span class="route-chip{depot_class}">'
+                        f'{prefix}{escape(stop_id)}</span>'
+                    )
+                    if position < len(stop_ids):
+                        route_items.append('<span class="route-arrow">→</span>')
+                st.markdown(
+                    f'<div class="route-strip">{"".join(route_items)}</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f'<div class="result-note" style="margin-top:.55rem">'
+                    f'Population <strong>{config.population_size}</strong> · '
+                    f'{escape(config.selection)} · mutation <strong>{config.mutation_rate:.1f}</strong> · '
+                    f'crossover <strong>{config.crossover_rate:.1f}</strong> · '
+                    f'graine <strong>{config.seed}</strong></div>',
+                    unsafe_allow_html=True,
                 )
                 params = st.session_state.get("tsp_optuna_params")
                 if params:
