@@ -1,0 +1,5 @@
+folium>=0.17,<1
+matplotlib>=3.8,<4
+optuna>=3.6,<5
+requests>=2.31,<3
+streamlit>=1.36,<2
